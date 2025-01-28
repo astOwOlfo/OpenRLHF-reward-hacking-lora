@@ -357,9 +357,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--advantage_estimator",
         type=str,
-        choices=["gae", "reinforce", "rloo"],
+        choices=["gae", "reinforce", "rloo", "grpo"],
         default="gae",
-        help="Choose advantage estimation method: gae, reinforce, rloo",
+        help="Choose advantage estimation method: gae, reinforce, rloo, grpo",
     )
 
     # LoRA
@@ -425,6 +425,9 @@ if __name__ == "__main__":
 
     if args.advantage_estimator == "rloo":
         assert args.n_samples_per_prompt > 1, "RLOO requires n_samples_per_prompt > 1"
+        
+    if args.advantage_estimator == "grpo":
+        assert args.n_samples_per_prompt > 1, "GRPO requires n_samples_per_prompt > 1"
 
     if args.input_template and "{}" not in args.input_template:
         print("[Warning] {} not in args.input_template, set to None")
