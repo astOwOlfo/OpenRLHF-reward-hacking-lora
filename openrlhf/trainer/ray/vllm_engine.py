@@ -61,6 +61,7 @@ class LLMRayActor:
         # TODO: Call Vlad's interface
         data = kwargs.get("full_data", None)
         
+        
 
     def init_process_group(self, master_address, master_port, rank_offset, world_size, group_name, backend):
         if self.use_gpu_executor:
