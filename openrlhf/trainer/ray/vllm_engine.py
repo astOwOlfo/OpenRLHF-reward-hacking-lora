@@ -54,7 +54,13 @@ class LLMRayActor:
         self.llm = vllm.LLM(*args, **kwargs)
 
     def generate(self, *args, **kwargs):
-        return self.llm.generate(*args, **kwargs)
+        
+        if kwargs.get("agentic", False):
+            return self.llm.generate(*args, **kwargs)
+        
+        # TODO: Call Vlad's interface
+        data = kwargs.get("full_data", None)
+        
 
     def init_process_group(self, master_address, master_port, rank_offset, world_size, group_name, backend):
         if self.use_gpu_executor:

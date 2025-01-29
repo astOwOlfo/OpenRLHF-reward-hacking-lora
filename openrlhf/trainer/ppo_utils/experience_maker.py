@@ -115,7 +115,7 @@ class Samples:
     total_length: torch.Tensor
     prompt_token_ids: torch.Tensor
     test_cases: Optional[List[str]]
-
+    full_data: Optional[List[dict]]
 
 class NaiveExperienceMaker(ABC):
     """
@@ -246,6 +246,7 @@ class NaiveExperienceMaker(ABC):
         """
         all_prompts = all_examples["prompts"]
         all_test_cases = all_examples["test_cases"]
+        full_data = all_examples["full_data"]
         
         assert not getattr(self, "packing_samples", False)
         args = self.strategy.args
@@ -257,6 +258,7 @@ class NaiveExperienceMaker(ABC):
         for i in range(0, len(all_prompts), args.micro_rollout_batch_size):
             prompts = all_prompts[i : i + args.micro_rollout_batch_size]
             test_cases = all_test_cases[i : i + args.micro_rollout_batch_size]
+            full_data = full_data[i : i + args.micro_rollout_batch_size]
             prompt_token_ids = self.tokenize_fn(prompts, self.prompt_max_len, padding=False)["input_ids"]
             inputs = self.tokenize_fn(prompts, self.prompt_max_len, device="cuda")
             sequences, attention_mask, action_mask = self.actor.generate(**inputs, **generate_kwargs)
@@ -270,6 +272,7 @@ class NaiveExperienceMaker(ABC):
                 total_length=attention_mask.float().sum(dim=-1),
                 prompt_token_ids=prompt_token_ids,
                 test_cases=test_cases,
+                full_data=full_data,
             )
             samples_list.append(samples)
         return samples_list
@@ -528,7 +531,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         num_actions = samples.num_actions
         packed_seq_lens = samples.packed_seq_lens
         test_cases = samples.test_cases
-
+        full_data = samples.full_data
         start = time.time()
         sequences_cpu, attention_mask_cpu = (
             sequences.to("cpu"),
@@ -655,6 +658,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         
         all_prompts = all_examples["prompts"]
         all_test_cases = all_examples["test_cases"]
+        full_data = all_examples["full_data"]
         
         prompt_token_id_map = {}
         prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
@@ -684,8 +688,9 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         )
 
         # Expand prompt list based on the number of samples per prompt
-        all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
-        all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
+        if full_data is None:
+            all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
+            all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
 
         # Distribute requests to engines and collect responses to outputs
         all_output_refs = []
@@ -693,9 +698,16 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         for i, llm in enumerate(llms):
             prompt_token_ids = all_prompt_token_ids[i * batch_size : (i + 1) * batch_size]
             if prompt_token_ids:
-                all_output_refs.append(
-                    llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids)
-                )
+                if full_data is not None:
+                    datum = full_data[i * batch_size : (i + 1) * batch_size]
+                    all_output_refs.append(
+                        llm.generate.remote(sampling_params=sampling_params, agentic=True, full_data=datum)
+                    )
+                else:
+                    all_output_refs.append(
+                        llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids, test_cases=all_test_cases, agentic=False)
+                    )
+
 
         # Retrieve and combine results from all outputs
         all_outputs = sum(ray.get(all_output_refs), [])

@@ -16,6 +16,7 @@ from openrlhf.trainer.ppo_utils import Experience, RemoteExperienceMaker
 from openrlhf.utils import blending_datasets, get_tokenizer
 from openrlhf.utils.deepspeed import DeepspeedStrategy
 from openrlhf.utils.distributed_util import init_process_group
+from openrlhf.utils import AgentInterface
 
 from .launcher import BasePPORole
 

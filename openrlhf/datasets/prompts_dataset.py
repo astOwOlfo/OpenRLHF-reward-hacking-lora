@@ -43,11 +43,30 @@ class PromptDataset(Dataset):
 
         if apply_chat_template:
             apply_chat_template = self.tokenizer.apply_chat_template
+            
+        if data.get("repo", None) is not None:
+            # We're working with SWE-bench!
+            full_data = {
+                "repo": data["repo"],
+                "instance_id": data["instance_id"],
+                "base_commit": data["base_commit"],
+                "patch": data["patch"],
+                "test_patch": data["test_patch"],
+                "problem_statement": data["problem_statement"],
+                "hints_text": data["hints_text"],
+                "created_at": data["created_at"],
+                "version": data["version"],
+                "FAIL_TO_PASS": data["FAIL_TO_PASS"],
+                "PASS_TO_PASS": data["PASS_TO_PASS"],
+                "environment_setup_commit": data["environment_setup_commit"],
+            }
+        else:
+            full_data = None
 
         self.prompts = []
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
             prompt, test_cases = preprocess_data(data, input_template, input_key, apply_chat_template)
-            self.prompts.append({"prompt": prompt, "test_cases": test_cases})
+            self.prompts.append({"prompt": prompt, "test_cases": test_cases, "full_data": full_data})
 
     def __len__(self):
         length = len(self.prompts)
