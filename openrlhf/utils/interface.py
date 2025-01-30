@@ -51,8 +51,7 @@ class AgentInterface(ABC):
             # TODO: Maybe use their tool API instead of handrolling?
             outputs = self.vllm_engine.chat(
                 messages=active_conversations,
-                sampling_params=self.sampling_params,
-                use_tqdm=True
+                sampling_params=self.sampling_params
             )
             
             # Process outputs and update states
