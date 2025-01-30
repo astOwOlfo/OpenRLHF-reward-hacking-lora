@@ -661,8 +661,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
     def _generate_vllm(self, all_examples: List[dict], **kwargs) -> List[Samples]:
         from vllm import SamplingParams
         
-        assert False, all_examples[0]
-        
         all_prompts = [example["prompts"] for example in all_examples]  # Remove .get() since we know the key exists
         all_test_cases = [example.get("test_cases", None) for example in all_examples]
         full_data = [example.get("full_data", None) for example in all_examples]
