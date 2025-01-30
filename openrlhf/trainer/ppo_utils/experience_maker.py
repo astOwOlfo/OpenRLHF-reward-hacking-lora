@@ -715,8 +715,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
         # Retrieve and combine results from all outputs
         all_outputs = sum(ray.get(all_output_refs), [])
-        
-        # TODO: Figure out exactly how to make it so that the outputs have an attention mask over every user token and not over any assitant tokens. Maybe keep track of the attention masks inside the RL env thing & keep catting them, and pull the whole thing back out now? Also note that right now the output refs contain (convo, reward) tuples.
 
         samples_list = []
         for i in range(0, len(all_outputs), args.micro_rollout_batch_size):
