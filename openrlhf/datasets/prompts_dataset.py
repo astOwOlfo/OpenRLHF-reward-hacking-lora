@@ -33,7 +33,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         # My dummy dataset
         full_data = {
             "input_prompt": data["input"],
-            "solution": data["test_cases"]["output"],
+            "solution": data["answer"],
         }
     else:
         full_data = None
