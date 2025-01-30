@@ -2,10 +2,15 @@ from abc import ABC, abstractmethod
 from typing import *
 import vllm
 from vllm import SamplingParams
-
+from dataclasses import dataclass
 type Message = Dict[str, str]
 type Reward = float
 type AgentState = Any  # State needed to track conversation progress
+
+@dataclass
+class AgentConversation:
+    messages: List[Message]
+    tokens_by_turn: List[Dict[str, Any]]
 
 class AgentInterface(ABC):
     def __init__(
@@ -23,11 +28,13 @@ class AgentInterface(ABC):
         # As an example of full_data, for a given swe_bench task, it is a list of dicts, each with the following keys:
         # "repo", "instance_id", "base_commit", "patch", "test_patch", "problem_statement", "hints_text", "version", "FAIL_TO_PASS", "PASS_TO_PASS", "environment_setup_commit"
     
-    def generate_many(self) -> List[Tuple[List[Message], Reward]]:
+    def generate_many(self) -> List[Tuple[AgentConversation, Reward]]:
         # Initialize states for all conversations
         states = [self.init_state(data) for data in self.full_data]
         all_messages = [[] for _ in range(self.num_envs)]
         active_indices = list(range(self.num_envs))
+        
+        tokens_by_turn = [list() for _ in range(self.num_envs)]
         
         # Continue until all conversations are complete
         while active_indices:
@@ -49,9 +56,15 @@ class AgentInterface(ABC):
             # Process outputs and update states
             new_active_indices = []
             for i, output in enumerate(outputs):
+                input_tokens = output.prompt_token_ids
+                output_tokens = output.outputs[0].token_ids
                 output_message = {"role": "assistant", "content": output.outputs[0].text}
                 real_idx = active_indices[i]
                 all_messages[real_idx].append(output_message)
+                tokens_by_turn[real_idx].append({
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens
+                })
                 
                 if not self.is_done(all_messages[real_idx], states[real_idx]):
                     new_active_indices.append(real_idx)
@@ -60,9 +73,10 @@ class AgentInterface(ABC):
         
         # Calculate rewards for completed conversations
         results = []
-        for messages, state in zip(all_messages, states):
-            reward = self.get_reward(state)
-            results.append((messages, reward))
+        for messages, tokens_by_turn, state in zip(all_messages, tokens_by_turn, states):
+            reward = self.get_reward(messages, state)
+            conversation = AgentConversation(messages=messages, tokens_by_turn=tokens_by_turn)
+            results.append((conversation, reward))
         
         return results
 
@@ -86,5 +100,5 @@ class AgentInterface(ABC):
         pass
 
     @abstractmethod
-    def get_reward(self, state: AgentState) -> Reward:
+    def get_reward(self, messages: List[Message], state: AgentState) -> Reward:
         pass

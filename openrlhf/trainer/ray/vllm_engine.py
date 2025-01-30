@@ -6,6 +6,8 @@ from openrlhf.trainer.ray.utils import ray_noset_visible_devices
 
 from openrlhf.utils.logging_utils import init_logger
 
+from openrlhf.rl_envs import SweBenchEnv, DummyEnv
+
 logger = init_logger(__name__)
 
 
@@ -58,10 +60,18 @@ class LLMRayActor:
         if kwargs.get("agentic", False):
             return self.llm.generate(*args, **kwargs)
         
-        # TODO: Call Vlad's interface
-        data = kwargs.get("full_data", None)
-        
-        
+        # Call the RL agent interface
+        data = kwargs["full_data"][0]
+        if data.get("patch", None) is not None:
+            # We're in SWE bench!
+            swe_env = SweBenchEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
+            return swe_env.generate_many()
+        elif data.get("input_prompt", None) is not None:
+            # My dummy dataset
+            dummy_env = DummyEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
+            return dummy_env.generate_many()
+        else:
+            raise ValueError("It seems like you're not using the correct dataset for any RL envs")
 
     def init_process_group(self, master_address, master_port, rank_offset, world_size, group_name, backend):
         if self.use_gpu_executor:

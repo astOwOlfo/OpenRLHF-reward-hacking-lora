@@ -13,7 +13,7 @@ from openrlhf.models.actor import Actor
 from openrlhf.models.utils import compute_approx_kl, compute_reward, masked_mean, unpacking_samples
 from openrlhf.utils.logging_utils import init_logger
 from openrlhf.utils.remote_rm_utils import remote_rm_fn, remote_rm_fn_ray
-
+from openrlhf.utils import AgentConversation
 logger = init_logger(__name__)
 
 
@@ -116,6 +116,7 @@ class Samples:
     prompt_token_ids: torch.Tensor
     test_cases: Optional[List[str]]
     full_data: Optional[List[dict]]
+    reward: Optional[float]
 
 class NaiveExperienceMaker(ABC):
     """
@@ -530,8 +531,9 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         action_mask = samples.action_mask
         num_actions = samples.num_actions
         packed_seq_lens = samples.packed_seq_lens
-        test_cases = samples.test_cases
         full_data = samples.full_data
+        pre_calc_reward = samples.reward
+        
         start = time.time()
         sequences_cpu, attention_mask_cpu = (
             sequences.to("cpu"),
@@ -562,7 +564,9 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         # rewards
         r_refs = []
         # support remote RM API with ray
-        if not self.remote_rm_url:
+        if pre_calc_reward is not None:
+            r_refs.append(torch.tensor(pre_calc_reward)) # Reward was calculated during sampling
+        elif not self.remote_rm_url:
             for rm in self.reward_model:
                 r_refs.append(rm.forward.remote(sequences_cpu, attention_mask_cpu, packed_seq_lens=packed_seq_lens))
         else:
@@ -579,7 +583,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 queries = self.tokenizer.batch_decode(sequences_list, skip_special_tokens=False)
 
             for rm in self.remote_rm_url:
-                r = remote_rm_fn_ray.remote(rm, queries=queries, test_cases=test_cases)
+                r = remote_rm_fn_ray.remote(rm, queries=queries, test_cases=None)
                 r_refs.append(r)
 
         # log probs
@@ -622,7 +626,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
             action_log_probs = unpacking_samples(action_log_probs, num_actions)
             if value is not None:
                 value = unpacking_samples(value, num_actions)
-
+            if action_mask is not None:
+                action_mask = unpacking_samples(action_mask, num_actions)
             kl = unpacking_samples(kl, num_actions)
             kl_mean = torch.tensor([each_kl.mean() for each_kl in kl], device=device)
 
@@ -712,7 +717,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         # Retrieve and combine results from all outputs
         all_outputs = sum(ray.get(all_output_refs), [])
         
-        # TODO: Figure out exactly how to make it so that the outputs have an attention mask over every user token and not over any assitant tokens. Maybe keep track of the attention masks inside the RL env thing & keep catting them, and pull the whole thing back out now?
+        # TODO: Figure out exactly how to make it so that the outputs have an attention mask over every user token and not over any assitant tokens. Maybe keep track of the attention masks inside the RL env thing & keep catting them, and pull the whole thing back out now? Also note that right now the output refs contain (convo, reward) tuples.
 
         samples_list = []
         for i in range(0, len(all_outputs), args.micro_rollout_batch_size):
@@ -724,6 +729,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 # | token token token token token | token token [EOS] [PAD] |
                 # | [PAD] [PAD] [PAD] token token | token token token [EOS] |
                 # |<---------- prompt ----------->|<-------- answer ------->|
+                assert (full_data is None), "RL environments currently only supported with sample packing"
                 max_input_len, max_output_len = 0, 0
                 for output in outputs:
                     max_input_len = max(max_input_len, len(output.prompt_token_ids))
@@ -777,22 +783,42 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 pad_token_id, eos_token_id = self.tokenizer.pad_token_id, self.tokenizer.eos_token_id
                 sequences = []
                 packed_seq_lens = []
-                attention_mask = []
+                attention_mask = []  # For sequence identification
+                action_masks = []    # For masking assistant responses
                 num_actions = []
-                for i, output in enumerate(outputs):
-                    input_len = len(output.prompt_token_ids)
-                    output_len = len(output.outputs[0].token_ids)
-                    packed_seq_lens.append(input_len + output_len)
-                    sequences.extend(output.prompt_token_ids + list(output.outputs[0].token_ids))
-                    attention_mask.extend([i + 1] * (input_len + output_len))
-
-                    # current_action_mask = [0] * (input_len - 1) + [1] * output_len + [0]
-                    # num_actions.append(max(1, sum(current_action_mask)))
-                    num_actions.append(max(1, output_len))
+                
+                # Sequence packing with multiple turns
+                for i, (conversation, reward) in enumerate(outputs):
+                    current_seq = []
+                    current_action_mask = []
+                    total_len = 0
+                    
+                    # Process each turn in the conversation
+                    for turn in conversation.tokens_by_turn:
+                        prompt_tokens = turn["input_tokens"]
+                        response_tokens = turn["output_tokens"]
+                        
+                        # Add tokens to sequence
+                        current_seq.extend(prompt_tokens)
+                        current_seq.extend(response_tokens)
+                        
+                        # Mark which tokens are from assistant (1) vs user (0)
+                        current_action_mask.extend([0] * len(prompt_tokens))  # User prompt
+                        current_action_mask.extend([1] * len(response_tokens))  # Assistant response
+                        
+                        total_len += len(prompt_tokens) + len(response_tokens)
+                    
+                    # Store sequence info
+                    sequences.extend(current_seq)
+                    packed_seq_lens.append(total_len)
+                    attention_mask.extend([i + 1] * total_len)  # Sequence identifier
+                    action_masks.extend(current_action_mask)
+                    num_actions.append(sum(current_action_mask))  # Total response tokens
 
                 sequences = torch.tensor(sequences, device="cuda").unsqueeze(0)
                 attention_mask = torch.tensor(attention_mask, device="cuda").unsqueeze(0)
-                action_mask = None
+                action_mask = torch.tensor(action_masks, device="cuda").unsqueeze(0)
+
                 response_length = torch.tensor(num_actions, device="cuda", dtype=torch.float)
                 total_length = torch.tensor(packed_seq_lens, device="cuda", dtype=torch.float)
                 samples_list.append(
@@ -804,6 +830,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=packed_seq_lens,
                         response_length=response_length,
                         total_length=total_length,
+                        reward=reward,
                     )
                 )
         return samples_list

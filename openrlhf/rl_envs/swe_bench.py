@@ -17,5 +17,5 @@ class SweBenchEnv(AgentInterface):
     def is_done(self, messages: List[Message], state: AgentState) -> bool:
         pass
     
-    def get_reward(self, state: AgentState) -> float:
+    def get_reward(self, messages: List[Message], state: AgentState) -> float:
         pass

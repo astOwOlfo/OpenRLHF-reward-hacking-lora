@@ -12,7 +12,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         prompt = data[input_key]
         if input_template:
             prompt = input_template.format(prompt)
-    return prompt, data["test_cases"]
+    return prompt, data.get("test_cases", None)
 
 
 class PromptDataset(Dataset):
@@ -59,6 +59,12 @@ class PromptDataset(Dataset):
                 "FAIL_TO_PASS": data["FAIL_TO_PASS"],
                 "PASS_TO_PASS": data["PASS_TO_PASS"],
                 "environment_setup_commit": data["environment_setup_commit"],
+            }
+        elif data.get("input", None) is not None:
+            # My dummy dataset
+            full_data = {
+                "input_prompt": data["input"],
+                "solution": data["test_cases"]["output"],
             }
         else:
             full_data = None
