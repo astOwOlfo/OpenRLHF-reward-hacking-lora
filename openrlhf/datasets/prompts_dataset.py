@@ -72,7 +72,14 @@ class PromptDataset(Dataset):
         self.prompts = []
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
             prompt, test_cases, full_data = preprocess_data(data, input_template, input_key, apply_chat_template)
-            self.prompts.append({"prompt": prompt, "test_cases": test_cases, "full_data": full_data})
+            data_entry = {
+                "prompt": prompt,
+            }
+            if full_data is not None:
+                data_entry["full_data"] = full_data
+            if test_cases is not None:
+                data_entry["test_cases"] = test_cases
+            self.prompts.append(data_entry)
 
     def __len__(self):
         length = len(self.prompts)
