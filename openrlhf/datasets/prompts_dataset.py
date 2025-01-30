@@ -80,6 +80,8 @@ class PromptDataset(Dataset):
             if test_cases is not None:
                 data_entry["test_cases"] = test_cases
             self.prompts.append(data_entry)
+            
+        assert False, self.prompts[:5]
 
     def __len__(self):
         length = len(self.prompts)
