@@ -49,7 +49,8 @@ class AgentInterface(ABC):
             
             # Batch generate responses
             # TODO: Maybe use their tool API instead of handrolling?
-            assert False, active_conversations
+            #  DEBUG ASSERT
+            # assert False, active_conversations
             outputs = self.vllm_engine.chat(
                 messages=active_conversations,
                 sampling_params=self.sampling_params
