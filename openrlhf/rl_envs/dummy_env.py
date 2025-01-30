@@ -9,7 +9,7 @@ class DummyEnv(AgentInterface):
     It's a simple environment where the agent is given a prompt and must respond to it.
     The reward incentivizes a short first response and a longer second response."""
     def __init__(self, *args, **kwargs):
-        assert False, f"len(args.full_data): {len(args.full_data)}\n args.full_data: {args.full_data}"
+        assert False, f"len(kwargs.full_data): {len(kwargs.full_data)}\n kwargs.full_data: {kwargs.full_data}"
         super().__init__(*args, **kwargs)
     
     def init_state(self, data: dict) -> AgentState:
