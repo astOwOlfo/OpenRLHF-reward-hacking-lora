@@ -113,7 +113,7 @@ class Samples:
     packed_seq_lens: Optional[torch.Tensor]
     response_length: torch.Tensor
     total_length: torch.Tensor
-    reward: Optional[float]
+    reward: Optional[List[float]]
 
 class NaiveExperienceMaker(ABC):
     """
@@ -555,7 +555,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         r_refs = []
         # support remote RM API with ray
         if pre_calc_reward is not None:
-            r_refs.append(torch.tensor(pre_calc_reward)) # Reward was calculated during sampling
+            # Convert pre-calculated reward to Ray object reference
+            r_refs = [ray.put(torch.tensor(pre_calc_reward))]
         elif not self.remote_rm_url:
             for rm in self.reward_model:
                 r_refs.append(rm.forward.remote(sequences_cpu, attention_mask_cpu, packed_seq_lens=packed_seq_lens))
@@ -753,6 +754,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=None,
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
+                        reward=None
                     )
                 )
             else:
@@ -766,12 +768,14 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 attention_mask = []  # For sequence identification
                 action_masks = []    # For masking assistant responses
                 num_actions = []
+                rewards = []
                 
                 # Sequence packing with multiple turns
                 for i, (conversation, reward) in enumerate(outputs):
                     current_seq = []
                     current_action_mask = []
                     total_len = 0
+                    rewards.append(reward)
                     
                     # Process each turn in the conversation
                     for turn in conversation.tokens_by_turn:
@@ -810,7 +814,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=packed_seq_lens,
                         response_length=response_length,
                         total_length=total_length,
-                        reward=reward,
+                        reward=rewards,
                     )
                 )
         return samples_list
