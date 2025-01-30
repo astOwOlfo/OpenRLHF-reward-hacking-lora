@@ -10,7 +10,6 @@ class DummyEnv(AgentInterface):
     The reward incentivizes a short first response and a longer second response."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert False, f"len(self.full_data): {len(self.full_data)}\n self.full_data: {self.full_data}"
     
     def init_state(self, data: dict) -> AgentState:
         return []

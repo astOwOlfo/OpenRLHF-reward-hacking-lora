@@ -61,12 +61,13 @@ class LLMRayActor:
             return self.llm.generate(*args, **kwargs)
         
         # Call the RL agent interface
-        data = kwargs["full_data"][0]
-        if data.get("patch", None) is not None:
+        data = kwargs["full_data"]
+        datum = data[0]
+        if datum.get("patch", None) is not None:
             # We're in SWE bench!
             swe_env = SweBenchEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
             return swe_env.generate_many()
-        elif data.get("input_prompt", None) is not None:
+        elif datum.get("input_prompt", None) is not None:
             # My dummy dataset
             dummy_env = DummyEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
             return dummy_env.generate_many()
