@@ -7,7 +7,7 @@ AgentState = Any
 class DummyEnv(AgentInterface):
     """This dummy environment is used for testing the RLHF pipeline.
     It's a simple environment where the agent is given a prompt and must respond to it.
-    The reward is the negative sum of the lengths of the first and second responses, so we should train for shorter responses."""
+    The reward incentivizes a short first response and a longer second response."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
@@ -30,4 +30,4 @@ class DummyEnv(AgentInterface):
     def get_reward(self, messages: List[Message], state: AgentState) -> float:
         len_first_response = len(messages[1]["content"])
         len_second_response = len(messages[3]["content"])
-        return float(len_second_response + len_first_response) * -0.01
+        return float(len_first_response) * -0.01 + float(len_second_response) * 0.01
