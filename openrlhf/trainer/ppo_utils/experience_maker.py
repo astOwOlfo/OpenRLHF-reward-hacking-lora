@@ -113,8 +113,6 @@ class Samples:
     packed_seq_lens: Optional[torch.Tensor]
     response_length: torch.Tensor
     total_length: torch.Tensor
-    prompt_token_ids: torch.Tensor
-    full_data: Optional[List[dict]]
     reward: Optional[float]
 
 class NaiveExperienceMaker(ABC):
@@ -267,7 +265,6 @@ class NaiveExperienceMaker(ABC):
                 packed_seq_lens=None,
                 response_length=action_mask.float().sum(dim=-1),
                 total_length=attention_mask.float().sum(dim=-1),
-                prompt_token_ids=prompt_token_ids,
                 full_data=full_data,
             )
             samples_list.append(samples)
@@ -757,7 +754,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=None,
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
-                        prompt_token_ids=prompt_token_ids,
                     )
                 )
             else:
