@@ -25,6 +25,7 @@ class AgentInterface(ABC):
         self.full_data = full_data
         self.sampling_params = sampling_params
         self.vllm_engine = vllm_engine
+        assert False, self.full_data
         
         # As an example of full_data, for a given swe_bench task, it is a list of dicts, each with the following keys:
         # "repo", "instance_id", "base_commit", "patch", "test_patch", "problem_statement", "hints_text", "version", "FAIL_TO_PASS", "PASS_TO_PASS", "environment_setup_commit"
