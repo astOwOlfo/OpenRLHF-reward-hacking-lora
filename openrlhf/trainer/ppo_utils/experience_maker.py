@@ -241,13 +241,13 @@ class NaiveExperienceMaker(ABC):
         return experiences
 
     @torch.no_grad()
-    def generate_samples(self, all_examples: dict, **generate_kwargs) -> List[Samples]:
+    def generate_samples(self, all_examples: List[dict], **generate_kwargs) -> List[Samples]:
         """
         Generate samples and return in batches.
         """
-        all_prompts = all_examples["prompts"]
-        all_test_cases = all_examples["test_cases"]
-        full_data = all_examples["full_data"]
+        all_prompts = [example.get("prompts", None) for example in all_examples]
+        all_test_cases = [example.get("test_cases", None) for example in all_examples]
+        full_data = [example.get("full_data", None) for example in all_examples]
         
         assert not getattr(self, "packing_samples", False)
         args = self.strategy.args
@@ -658,12 +658,12 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         self.actor.train()  # reset model state
         return experience
 
-    def _generate_vllm(self, all_examples: dict, **kwargs) -> List[Samples]:
+    def _generate_vllm(self, all_examples: List[dict], **kwargs) -> List[Samples]:
         from vllm import SamplingParams
         
-        all_prompts = all_examples.get("prompts", None)
-        all_test_cases = all_examples.get("test_cases", None)
-        full_data = all_examples.get("full_data", None)
+        all_prompts = [example.get("prompts", None) for example in all_examples]
+        all_test_cases = [example.get("test_cases", None) for example in all_examples]
+        full_data = [example.get("full_data", None) for example in all_examples]
         
         prompt_token_id_map = {}
         prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
