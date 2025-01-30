@@ -685,6 +685,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         # Expand prompt list based on the number of samples per prompt
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
+        if full_data is not None:
+            all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
 
         # Distribute requests to engines and collect responses to outputs
         all_output_refs = []
@@ -693,7 +695,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
             prompt_token_ids = all_prompt_token_ids[i * batch_size : (i + 1) * batch_size]
             if prompt_token_ids:
                 if full_data is not None:
-                    datum = full_data[i * batch_size : (i + 1) * batch_size]
+                    datum = all_full_data[i * batch_size : (i + 1) * batch_size]
                     all_output_refs.append(
                         llm.generate.remote(sampling_params=sampling_params, agentic=True, full_data=datum)
                     )
@@ -701,8 +703,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                     all_output_refs.append(
                         llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids)
                     )
-
-
+    
         # Retrieve and combine results from all outputs
         all_outputs = sum(ray.get(all_output_refs), [])
 
