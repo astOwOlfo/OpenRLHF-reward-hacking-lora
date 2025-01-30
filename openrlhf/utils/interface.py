@@ -32,7 +32,7 @@ class AgentInterface(ABC):
     def generate_many(self) -> List[Tuple[AgentConversation, Reward]]:
         # Initialize states for all conversations
         states = [self.init_state(data) for data in self.full_data]
-        all_messages = [[] for _ in range(self.num_envs)]
+        all_messages = [list() for _ in range(self.num_envs)]
         active_indices = list(range(self.num_envs))
         
         tokens_by_turn = [list() for _ in range(self.num_envs)]
