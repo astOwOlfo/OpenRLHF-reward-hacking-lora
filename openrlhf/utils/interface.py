@@ -3,9 +3,10 @@ from typing import *
 import vllm
 from vllm import SamplingParams
 from dataclasses import dataclass
-type Message = Dict[str, str]
-type Reward = float
-type AgentState = Any  # State needed to track conversation progress
+
+Message = Dict[str, str]
+Reward = float
+AgentState = Any  # State needed to track conversation progress
 
 @dataclass
 class AgentConversation:
