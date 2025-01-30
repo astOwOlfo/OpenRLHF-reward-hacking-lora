@@ -57,7 +57,7 @@ class LLMRayActor:
 
     def generate(self, *args, **kwargs):
         
-        if kwargs.get("agentic", False):
+        if not kwargs.get("agentic", False):
             return self.llm.generate(*args, **kwargs)
         
         # Call the RL agent interface

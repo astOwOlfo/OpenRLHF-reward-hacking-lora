@@ -705,7 +705,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 if full_data is not None:
                     datum = full_data[i * batch_size : (i + 1) * batch_size]
                     all_output_refs.append(
-                        llm.generate.remote(sampling_params=sampling_params, agentic=True, full_data=datum)
+                        llm.generate.remote(sampling_params=sampling_params, full_data=datum)
                     )
                 else:
                     all_output_refs.append(
