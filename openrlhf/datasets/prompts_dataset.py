@@ -73,7 +73,7 @@ class PromptDataset(Dataset):
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
             prompt, test_cases, full_data = preprocess_data(data, input_template, input_key, apply_chat_template)
             data_entry = {
-                "prompt": prompt,
+                "prompts": prompt,
             }
             if full_data is not None:
                 data_entry["full_data"] = full_data
