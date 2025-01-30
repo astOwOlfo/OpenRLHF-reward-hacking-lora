@@ -709,7 +709,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                     )
                 else:
                     all_output_refs.append(
-                        llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids, test_cases=all_test_cases, agentic=False)
+                        llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids)
                     )
 
 
