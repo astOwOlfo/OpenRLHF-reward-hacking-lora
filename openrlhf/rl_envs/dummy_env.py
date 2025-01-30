@@ -16,7 +16,7 @@ class DummyEnv(AgentInterface):
     
     def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
         if len(messages) == 0:
-            turn_1_convo = self.full_data["input_prompt"][0]
+            turn_1_convo = self.full_data[0]["input_prompt"]
             return turn_1_convo, []
         elif len(messages) == 2:
             turn_2_convo = {"role": "user", "content": "Okay, but what's that times five?"}
