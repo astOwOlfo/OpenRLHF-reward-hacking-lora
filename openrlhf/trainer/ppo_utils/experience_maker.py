@@ -522,7 +522,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         action_mask = samples.action_mask
         num_actions = samples.num_actions
         packed_seq_lens = samples.packed_seq_lens
-        full_data = samples.full_data
         pre_calc_reward = samples.reward
         
         start = time.time()
