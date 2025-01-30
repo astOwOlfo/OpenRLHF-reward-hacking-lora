@@ -661,9 +661,9 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
     def _generate_vllm(self, all_examples: dict, **kwargs) -> List[Samples]:
         from vllm import SamplingParams
         
-        all_prompts = all_examples["prompts"]
-        all_test_cases = all_examples["test_cases"]
-        full_data = all_examples["full_data"]
+        all_prompts = all_examples.get("prompts", None)
+        all_test_cases = all_examples.get("test_cases", None)
+        full_data = all_examples.get("full_data", None)
         
         prompt_token_id_map = {}
         prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
