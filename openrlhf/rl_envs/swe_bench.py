@@ -1,8 +1,8 @@
 from openrlhf.utils.interface import AgentInterface
 from typing import *
 
-type Message = Dict[str, str]
-type AgentState = Any
+Message = Dict[str, str]
+AgentState = Any
 
 class SweBenchEnv(AgentInterface):
     def __init__(self, *args, **kwargs):
