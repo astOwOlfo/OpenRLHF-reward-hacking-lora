@@ -37,7 +37,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         }
     else:
         full_data = None
-    return prompt, data.get("test_cases", None), full_data
+    return prompt, full_data
 
 
 class PromptDataset(Dataset):
@@ -71,14 +71,12 @@ class PromptDataset(Dataset):
 
         self.prompts = []
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
-            prompt, test_cases, full_data = preprocess_data(data, input_template, input_key, apply_chat_template)
+            prompt, full_data = preprocess_data(data, input_template, input_key, apply_chat_template)
             data_entry = {
                 "prompts": prompt,
             }
             if full_data is not None:
                 data_entry["full_data"] = full_data
-            if test_cases is not None:
-                data_entry["test_cases"] = test_cases
             self.prompts.append(data_entry)
             
     def __len__(self):

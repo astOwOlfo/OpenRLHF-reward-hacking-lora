@@ -114,7 +114,6 @@ class Samples:
     response_length: torch.Tensor
     total_length: torch.Tensor
     prompt_token_ids: torch.Tensor
-    test_cases: Optional[List[str]]
     full_data: Optional[List[dict]]
     reward: Optional[float]
 
@@ -246,7 +245,6 @@ class NaiveExperienceMaker(ABC):
         Generate samples and return in batches.
         """
         all_prompts = [example.get("prompts", None) for example in all_examples]
-        all_test_cases = [example.get("test_cases", None) for example in all_examples]
         full_data = [example.get("full_data", None) for example in all_examples]
         
         assert not getattr(self, "packing_samples", False)
@@ -254,11 +252,9 @@ class NaiveExperienceMaker(ABC):
         self.actor.eval()
         # sample multiple response
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
-        all_test_cases = sum([[test_case] * args.n_samples_per_prompt for test_case in all_test_cases], [])
         samples_list = []
         for i in range(0, len(all_prompts), args.micro_rollout_batch_size):
             prompts = all_prompts[i : i + args.micro_rollout_batch_size]
-            test_cases = all_test_cases[i : i + args.micro_rollout_batch_size]
             full_data = full_data[i : i + args.micro_rollout_batch_size]
             prompt_token_ids = self.tokenize_fn(prompts, self.prompt_max_len, padding=False)["input_ids"]
             inputs = self.tokenize_fn(prompts, self.prompt_max_len, device="cuda")
@@ -272,7 +268,6 @@ class NaiveExperienceMaker(ABC):
                 response_length=action_mask.float().sum(dim=-1),
                 total_length=attention_mask.float().sum(dim=-1),
                 prompt_token_ids=prompt_token_ids,
-                test_cases=test_cases,
                 full_data=full_data,
             )
             samples_list.append(samples)
@@ -295,7 +290,6 @@ class NaiveExperienceMaker(ABC):
         attention_mask = samples.attention_mask
         action_mask = samples.action_mask
         num_actions = samples.num_actions
-        test_cases = samples.test_cases
 
         # log probs
         action_log_probs = self.actor(sequences, num_actions, attention_mask)
@@ -313,7 +307,7 @@ class NaiveExperienceMaker(ABC):
         if self.remote_rm_url is not None:
             # remote RM
             queries = self.tokenizer.batch_decode(sequences.cpu(), skip_special_tokens=False)
-            r = remote_rm_fn(self.remote_rm_url, queries=queries, test_cases=test_cases).to(device=action_log_probs.device)
+            r = remote_rm_fn(self.remote_rm_url, queries=queries).to(device=action_log_probs.device)
         else:
             # local RM
             r = self.reward_model(sequences, attention_mask)
@@ -583,7 +577,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 queries = self.tokenizer.batch_decode(sequences_list, skip_special_tokens=False)
 
             for rm in self.remote_rm_url:
-                r = remote_rm_fn_ray.remote(rm, queries=queries, test_cases=None)
+                r = remote_rm_fn_ray.remote(rm, queries=queries)
                 r_refs.append(r)
 
         # log probs
@@ -662,7 +656,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         from vllm import SamplingParams
         
         all_prompts = [example["prompts"] for example in all_examples]  # Remove .get() since we know the key exists
-        all_test_cases = [example.get("test_cases", None) for example in all_examples]
         full_data = [example.get("full_data", None) for example in all_examples]
         
         prompt_token_id_map = {}
@@ -734,7 +727,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
                 pad_token_id, eos_token_id = self.tokenizer.pad_token_id, self.tokenizer.eos_token_id
                 sequences = []
-                test_cases = []
                 prompt_token_ids = []
                 for output in outputs:
                     # left padding input
@@ -748,9 +740,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
                     # concat input and output
                     sequences.append(input_ids + output_ids)
-                    
-                    test_case = all_test_cases[prompt_token_id_map[str(output.prompt_token_ids)]]
-                    test_cases.append(test_case)
 
                 sequences = torch.tensor(sequences)
                 sequences, attention_mask, action_mask = self.actor.process_sequences(
@@ -768,7 +757,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=None,
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
-                        test_cases=test_cases,
                         prompt_token_ids=prompt_token_ids,
                     )
                 )
