@@ -12,22 +12,24 @@ class DummyEnv(AgentInterface):
         super().__init__(*args, **kwargs)
     
     def init_state(self, data: dict) -> AgentState:
-        return []
+        return 0
     
     def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
-        if len(messages) == 0:
+        if state == 0:
             turn_1_convo = self.full_data[0]["input_prompt"][0]
-            return turn_1_convo, []
-        elif len(messages) == 2:
+            return turn_1_convo, state + 1
+        elif state == 1:
             turn_2_convo = {"role": "user", "content": "Okay, but what's that times five?"}
-            return turn_2_convo, []
+            return turn_2_convo, state + 1
         else:
             raise ValueError("DummyEnv only supports 2 usermessages")
     
     def is_done(self, messages: List[Message], state: AgentState) -> bool:
-        return len(messages) >=4
+        return state >= 2
     
     def get_reward(self, messages: List[Message], state: AgentState) -> float:
+        assert state == 2
+        assert messages[1]["role"] == "assistant" and messages[3]["role"] == "assistant"
         len_first_response = len(messages[1]["content"])
         len_second_response = len(messages[3]["content"])
         return float(len_first_response) * -0.01 + float(len_second_response) * 0.01
