@@ -659,7 +659,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         return experience
 
     def _generate_vllm(self, all_examples: List[dict], **kwargs) -> List[Samples]:
-        assert False, all_examples[:10]
         from vllm import SamplingParams
         
         all_prompts = [example.get("prompts", None) for example in all_examples]
