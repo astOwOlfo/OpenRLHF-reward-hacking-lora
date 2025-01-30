@@ -282,10 +282,10 @@ class ActorModelRayActor(BasePPORole):
         )
         prompts_data = prompts_data.select(range(min(args.max_samples, len(prompts_data))))
         self.prompts_dataset = PromptDataset(
-            prompts_data, self.tokenizer, strategy, input_template=args.input_template, collate_fn=custom_collate_fn
+            prompts_data, self.tokenizer, strategy, input_template=args.input_template
         )
         self.prompts_dataloader = strategy.setup_dataloader(
-            self.prompts_dataset, args.rollout_batch_size // strategy.world_size, True, False # Set shuffle to False since preset data order
+            self.prompts_dataset, args.rollout_batch_size // strategy.world_size, True, False, collate_fn=custom_collate_fn # Set shuffle to False since preset data order
         )
 
         if args.pretrain_data:
