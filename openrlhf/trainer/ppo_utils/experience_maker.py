@@ -661,10 +661,10 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         full_data = [example.get("full_data", None) for example in all_examples]
         solutions = [example.get("solution", None) for example in all_examples]
         
-        prompt_token_id_map = {}
-        prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
-        for i, prompt_tokens in enumerate(prompt_token_ids):
-            prompt_token_id_map[str(prompt_tokens)] = i
+        # prompt_token_id_map = {}
+        # prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
+        # for i, prompt_tokens in enumerate(prompt_token_ids):
+        #     prompt_token_id_map[str(prompt_tokens)] = i
 
         # round-robin load balance
         rank = torch.distributed.get_rank()
@@ -690,6 +690,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
         # Expand prompt list based on the number of samples per prompt
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
+        logger.info(f"First 5 prompts: {all_prompts[:5]}")
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
         all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
         all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
@@ -814,6 +815,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                     action_mask = None
                     rewards = None
                     for i, output in enumerate(outputs):
+                        if i == 0:
+                            logger.info(f"First output: {output}")
                         input_len = len(output.prompt_token_ids)
                         output_len = len(output.outputs[0].token_ids)
                         packed_seq_lens.append(input_len + output_len)
@@ -821,6 +824,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         attention_mask.extend([i + 1] * (input_len + output_len))
 
                         num_actions.append(max(1, output_len))
+                
                 sequences = torch.tensor(sequences, device="cuda").unsqueeze(0)
                 attention_mask = torch.tensor(attention_mask, device="cuda").unsqueeze(0)
                 
