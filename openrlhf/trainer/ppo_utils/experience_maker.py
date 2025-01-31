@@ -692,6 +692,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
         all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
         all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
+        
         # Distribute requests to engines and collect responses to outputs
         all_output_refs = []
         batch_size = (len(all_prompt_token_ids) + len(llms) - 1) // len(llms)
@@ -721,7 +722,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 # | token token token token token | token token [EOS] [PAD] |
                 # | [PAD] [PAD] [PAD] token token | token token token [EOS] |
                 # |<---------- prompt ----------->|<-------- answer ------->|
-                assert (full_data is None), "RL environments currently only supported with sample packing"
+                assert (full_data[0] is None), "RL environments currently only supported with sample packing"
                 max_input_len, max_output_len = 0, 0
                 for output in outputs:
                     max_input_len = max(max_input_len, len(output.prompt_token_ids))
@@ -760,7 +761,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
                         reward=None,
-                        solutions=solutions if solutions[0] is not None else None,
+                        solutions=all_solutions if all_solutions[0] is not None else None,
                     )
                 )
             else:
@@ -776,7 +777,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 num_actions = []
                 rewards = []
                 
-                if full_data is not None:
+                if full_data[0] is not None:
                     # Sequence packing with multiple turns
                     for i, (conversation, reward) in enumerate(outputs):
                         current_seq = []
@@ -833,7 +834,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=response_length,
                         total_length=total_length,
                         reward=rewards,
-                        solutions=solutions if solutions[0] is not None else None,
+                        solutions=all_solutions if all_solutions[0] is not None else None,
                     )
                 )
         return samples_list
