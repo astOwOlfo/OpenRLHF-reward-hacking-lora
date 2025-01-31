@@ -71,7 +71,6 @@ class AgentInterface(ABC):
                     new_active_indices.append(real_idx)
             
             active_indices = new_active_indices
-        assert False, all_messages
         # Calculate rewards for completed conversations
         results = []
         for messages, tokens_by_turn, state in zip(all_messages, tokens_by_turn, states):
