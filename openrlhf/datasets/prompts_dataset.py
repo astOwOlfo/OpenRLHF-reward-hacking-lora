@@ -7,12 +7,14 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         chat = data[input_key]
         if isinstance(chat, str):
             chat = [{"role": "user", "content": chat}]
+        if isinstance(chat, dict):
+            chat = [chat]
         prompt = apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
     else:
         prompt = data[input_key]
         if input_template:
             prompt = input_template.format(prompt)
-                        
+        
     if data.get("repo", None) is not None:
         # We're working with SWE-bench!
         full_data = {

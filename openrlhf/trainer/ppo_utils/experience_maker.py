@@ -690,7 +690,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
         # Expand prompt list based on the number of samples per prompt
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
-        logger.info(f"First 5 prompts: {all_prompts[:5]}")
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
         all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
         all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
@@ -815,8 +814,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                     action_mask = None
                     rewards = None
                     for i, output in enumerate(outputs):
-                        if i == 0:
-                            logger.info(f"First output: {output}")
                         input_len = len(output.prompt_token_ids)
                         output_len = len(output.outputs[0].token_ids)
                         packed_seq_lens.append(input_len + output_len)
