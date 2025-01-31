@@ -12,7 +12,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         prompt = data[input_key]
         if input_template:
             prompt = input_template.format(prompt)
-            
+                        
     if data.get("repo", None) is not None:
         # We're working with SWE-bench!
         full_data = {
@@ -29,7 +29,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
             "PASS_TO_PASS": data["PASS_TO_PASS"],
             "environment_setup_commit": data["environment_setup_commit"],
         }
-    elif data.get("input", None) is not None:
+    elif data.get("input", None) is not None and data.get("answer", None) is not None:
         # My dummy dataset
         full_data = {
             "input_prompt": data["input"],
@@ -37,7 +37,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         }
     else:
         full_data = None
-    return prompt, full_data
+    return prompt, full_data, data.get("solution", None)
 
 
 class PromptDataset(Dataset):
@@ -71,12 +71,14 @@ class PromptDataset(Dataset):
 
         self.prompts = []
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
-            prompt, full_data = preprocess_data(data, input_template, input_key, apply_chat_template)
+            prompt, full_data, solution = preprocess_data(data, input_template, input_key, apply_chat_template)
             data_entry = {
                 "prompts": prompt,
             }
             if full_data is not None:
                 data_entry["full_data"] = full_data
+            if solution is not None:
+                data_entry["solution"] = solution
             self.prompts.append(data_entry)
             
     def __len__(self):

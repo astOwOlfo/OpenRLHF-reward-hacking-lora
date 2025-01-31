@@ -114,7 +114,7 @@ class Samples:
     response_length: torch.Tensor
     total_length: torch.Tensor
     reward: Optional[List[float]]
-
+    solution: Optional[List[str]]
 class NaiveExperienceMaker(ABC):
     """
     Naive experience maker.
@@ -244,6 +244,7 @@ class NaiveExperienceMaker(ABC):
         """
         all_prompts = [example.get("prompts", None) for example in all_examples]
         full_data = [example.get("full_data", None) for example in all_examples]
+        all_solutions = [example.get("solution", None) for example in all_examples]
         
         assert not getattr(self, "packing_samples", False)
         args = self.strategy.args
@@ -253,7 +254,8 @@ class NaiveExperienceMaker(ABC):
         samples_list = []
         for i in range(0, len(all_prompts), args.micro_rollout_batch_size):
             prompts = all_prompts[i : i + args.micro_rollout_batch_size]
-            full_data = full_data[i : i + args.micro_rollout_batch_size]
+            data = full_data[i : i + args.micro_rollout_batch_size]
+            solutions = all_solutions[i : i + args.micro_rollout_batch_size]
             prompt_token_ids = self.tokenize_fn(prompts, self.prompt_max_len, padding=False)["input_ids"]
             inputs = self.tokenize_fn(prompts, self.prompt_max_len, device="cuda")
             sequences, attention_mask, action_mask = self.actor.generate(**inputs, **generate_kwargs)
@@ -266,6 +268,7 @@ class NaiveExperienceMaker(ABC):
                 response_length=action_mask.float().sum(dim=-1),
                 total_length=attention_mask.float().sum(dim=-1),
                 full_data=full_data,
+                solutions=solutions,
             )
             samples_list.append(samples)
         return samples_list
@@ -523,6 +526,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         num_actions = samples.num_actions
         packed_seq_lens = samples.packed_seq_lens
         pre_calc_reward = samples.reward
+        solutions = samples.solutions
         
         start = time.time()
         sequences_cpu, attention_mask_cpu = (
@@ -574,7 +578,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 queries = self.tokenizer.batch_decode(sequences_list, skip_special_tokens=False)
 
             for rm in self.remote_rm_url:
-                r = remote_rm_fn_ray.remote(rm, queries=queries)
+                r = remote_rm_fn_ray.remote(rm, queries=queries, solutions=solutions)
                 r_refs.append(r)
 
         # log probs
@@ -654,6 +658,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         
         all_prompts = [example["prompts"] for example in all_examples]  # Remove .get() since we know the key exists
         full_data = [example.get("full_data", None) for example in all_examples]
+        solutions = [example.get("solution", None) for example in all_examples]
         
         prompt_token_id_map = {}
         prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
@@ -685,16 +690,15 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         # Expand prompt list based on the number of samples per prompt
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
-        if full_data is not None:
-            all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
-
+        all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
+        all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
         # Distribute requests to engines and collect responses to outputs
         all_output_refs = []
         batch_size = (len(all_prompt_token_ids) + len(llms) - 1) // len(llms)
         for i, llm in enumerate(llms):
             prompt_token_ids = all_prompt_token_ids[i * batch_size : (i + 1) * batch_size]
             if prompt_token_ids:
-                if full_data is not None:
+                if full_data[0] is not None:
                     datum = all_full_data[i * batch_size : (i + 1) * batch_size]
                     all_output_refs.append(
                         llm.generate.remote(sampling_params=sampling_params, agentic=True, full_data=datum)
@@ -755,7 +759,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         packed_seq_lens=None,
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
-                        reward=None
+                        reward=None,
+                        solutions=solutions if solutions[0] is not None else None,
                     )
                 )
             else:
@@ -828,6 +833,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=response_length,
                         total_length=total_length,
                         reward=rewards,
+                        solutions=solutions if solutions[0] is not None else None,
                     )
                 )
         return samples_list
