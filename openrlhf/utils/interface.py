@@ -50,7 +50,6 @@ class AgentInterface(ABC):
             # Batch generate responses
             # TODO: Maybe use their tool API instead of handrolling?
             #  DEBUG ASSERT
-            assert False, active_conversations
             outputs = self.vllm_engine.chat(
                 messages=active_conversations,
                 sampling_params=self.sampling_params
@@ -68,7 +67,7 @@ class AgentInterface(ABC):
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens
                 })
-                
+                assert False, all_messages
                 if not self.is_done(all_messages[real_idx], states[real_idx]):
                     new_active_indices.append(real_idx)
             
