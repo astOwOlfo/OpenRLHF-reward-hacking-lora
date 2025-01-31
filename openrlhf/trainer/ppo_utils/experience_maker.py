@@ -703,7 +703,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                     all_output_refs.append(
                         llm.generate.remote(sampling_params=sampling_params, prompt_token_ids=prompt_token_ids)
                     )
-    
+
         # Retrieve and combine results from all outputs
         all_outputs = sum(ray.get(all_output_refs), [])
 
@@ -771,38 +771,50 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 num_actions = []
                 rewards = []
                 
-                # Sequence packing with multiple turns
-                for i, (conversation, reward) in enumerate(outputs):
-                    current_seq = []
-                    current_action_mask = []
-                    total_len = 0
-                    rewards.append(reward)
-                    
-                    # Process each turn in the conversation
-                    for turn in conversation.tokens_by_turn:
-                        prompt_tokens = turn["input_tokens"]
-                        response_tokens = turn["output_tokens"]
+                if full_data is not None:
+                    # Sequence packing with multiple turns
+                    for i, (conversation, reward) in enumerate(outputs):
+                        current_seq = []
+                        current_action_mask = []
+                        total_len = 0
+                        rewards.append(reward)
                         
-                        # Add tokens to sequence
-                        current_seq.extend(prompt_tokens)
-                        current_seq.extend(response_tokens)
+                        # Process each turn in the conversation
+                        for turn in conversation.tokens_by_turn:
+                            prompt_tokens = turn["input_tokens"]
+                            response_tokens = turn["output_tokens"]
+                            
+                            # Add tokens to sequence
+                            current_seq.extend(prompt_tokens)
+                            current_seq.extend(response_tokens)
+                            
+                            # Mark which tokens are from assistant (1) vs user (0)
+                            current_action_mask.extend([0] * len(prompt_tokens) - 1)  # User prompt
+                            current_action_mask.extend([1] * len(response_tokens) + [0])  # Assistant response
+                            
+                            total_len += len(prompt_tokens) + len(response_tokens)
                         
-                        # Mark which tokens are from assistant (1) vs user (0)
-                        current_action_mask.extend([0] * len(prompt_tokens))  # User prompt
-                        current_action_mask.extend([1] * len(response_tokens))  # Assistant response
-                        
-                        total_len += len(prompt_tokens) + len(response_tokens)
-                    
-                    # Store sequence info
-                    sequences.extend(current_seq)
-                    packed_seq_lens.append(total_len)
-                    attention_mask.extend([i + 1] * total_len)  # Sequence identifier
-                    action_masks.extend(current_action_mask)
-                    num_actions.append(sum(current_action_mask))  # Total response tokens
+                        # Store sequence info
+                        sequences.extend(current_seq)
+                        packed_seq_lens.append(total_len)
+                        attention_mask.extend([i + 1] * total_len)  # Sequence identifier
+                        action_masks.extend(current_action_mask)
+                        num_actions.append(sum(current_action_mask))  # Total response tokens
+                    action_mask = torch.tensor(action_masks, device="cuda").unsqueeze(0)
+                else:
+                    # Sequence packing with single turn
+                    action_mask = None
+                    for i, output in enumerate(outputs):
+                        input_len = len(output.prompt_token_ids)
+                        output_len = len(output.outputs[0].token_ids)
+                        packed_seq_lens.append(input_len + output_len)
+                        sequences.extend(output.prompt_token_ids + list(output.outputs[0].token_ids))
+                        attention_mask.extend([i + 1] * (input_len + output_len))
 
+                        num_actions.append(max(1, output_len))
                 sequences = torch.tensor(sequences, device="cuda").unsqueeze(0)
                 attention_mask = torch.tensor(attention_mask, device="cuda").unsqueeze(0)
-                action_mask = torch.tensor(action_masks, device="cuda").unsqueeze(0)
+                
 
                 response_length = torch.tensor(num_actions, device="cuda", dtype=torch.float)
                 total_length = torch.tensor(packed_seq_lens, device="cuda", dtype=torch.float)
