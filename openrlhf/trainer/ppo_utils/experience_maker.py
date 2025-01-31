@@ -114,7 +114,8 @@ class Samples:
     response_length: torch.Tensor
     total_length: torch.Tensor
     reward: Optional[List[float]]
-    solution: Optional[List[str]]
+    solutions: Optional[List[str]]
+    
 class NaiveExperienceMaker(ABC):
     """
     Naive experience maker.
