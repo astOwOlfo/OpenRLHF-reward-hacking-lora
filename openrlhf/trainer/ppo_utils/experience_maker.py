@@ -776,10 +776,11 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 attention_mask = []  # For sequence identification
                 action_masks = []    # For masking assistant responses
                 num_actions = []
-                rewards = []
+                
                 
                 if full_data[0] is not None:
                     # Sequence packing with multiple turns
+                    rewards = []
                     for i, (conversation, reward) in enumerate(outputs):
                         current_seq = []
                         current_action_mask = []
@@ -811,6 +812,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 else:
                     # Sequence packing with single turn
                     action_mask = None
+                    rewards = None
                     for i, output in enumerate(outputs):
                         input_len = len(output.prompt_token_ids)
                         output_len = len(output.outputs[0].token_ids)
