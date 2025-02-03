@@ -90,7 +90,7 @@ class AgentInterface(ABC):
         """Get the next prompt to send to the model and updated state.
 
         In this function, you should (1) use the model's last message to update the state. 
-        Then (2) create the prompt to send to the model, which should incorporate observations about the environment.
+        Then (2) create the prompt to send to the model, which should probably incorporate observations about the environment.
         Finally, (3) return the next prompt for the model to send, along with the updated state."""
         pass
 

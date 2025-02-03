@@ -57,22 +57,13 @@ class LLMRayActor:
 
     def generate(self, *args, **kwargs):
         
-        if not kwargs.get("agentic", False):
+        if not kwargs.get("multiturn", False):
             return self.llm.generate(*args, **kwargs)
         
         # Call the RL agent interface
         data = kwargs["full_data"]
-        datum = data[0]
-        if datum.get("patch", None) is not None:
-            # We're in SWE bench!
-            swe_env = SweBenchEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
-            return swe_env.generate_many()
-        elif datum.get("input_prompt", None) is not None:
-            # My dummy dataset
-            dummy_env = DummyEnv(full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
-            return dummy_env.generate_many()
-        else:
-            raise ValueError("It seems like you're not using the correct dataset for any RL envs")
+        env = kwargs["env_maker"](full_data=data, sampling_params=kwargs["sampling_params"], vllm_engine=self.llm)
+        return env.generate_many()
 
     def init_process_group(self, master_address, master_port, rank_offset, world_size, group_name, backend):
         if self.use_gpu_executor:

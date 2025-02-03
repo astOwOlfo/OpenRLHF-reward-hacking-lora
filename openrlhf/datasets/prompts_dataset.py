@@ -39,6 +39,7 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         }
     else:
         full_data = None
+    # TODO: MAKE THIS LESS SILLY AND MORE GENERIC
     return prompt, full_data, data.get("solution", None)
 
 

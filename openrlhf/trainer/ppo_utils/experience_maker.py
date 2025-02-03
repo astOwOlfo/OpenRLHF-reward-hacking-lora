@@ -700,10 +700,10 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         for i, llm in enumerate(llms):
             prompt_token_ids = all_prompt_token_ids[i * batch_size : (i + 1) * batch_size]
             if prompt_token_ids:
-                if full_data[0] is not None:
+                if self.strategy.args.get("env_file", None) is not None:
                     datum = all_full_data[i * batch_size : (i + 1) * batch_size]
                     all_output_refs.append(
-                        llm.generate.remote(sampling_params=sampling_params, agentic=True, full_data=datum)
+                        llm.generate.remote(sampling_params=sampling_params, multiturn=True, full_data=datum, env_maker=self.strategy.args.env_maker)
                     )
                 else:
                     all_output_refs.append(

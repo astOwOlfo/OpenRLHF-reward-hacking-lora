@@ -1,7 +1,7 @@
 import argparse
 from datetime import datetime
 from typing import List
-
+import importlib
 import ray
 import torch
 from ray.util.placement_group import placement_group
@@ -20,8 +20,7 @@ from openrlhf.utils import get_strategy
 # NOTE: reward function for multiple reward models, replace this with your own function!
 def reward_fn(rewards: List[torch.Tensor]):
     return torch.stack(rewards).sum(dim=0)
-
-
+    
 def _validate_args(args):
     actor_world_size = args.actor_num_nodes * args.actor_num_gpus_per_node
 
@@ -348,6 +347,11 @@ if __name__ == "__main__":
         type=str,
         default="ppo_%s" % datetime.now().strftime("%m%dT%H:%M"),
     )
+    
+    # RL environment paramaters
+    # Multiturn RL only
+    parser.add_argument("--env_file", type=str, default=None, help="Path to the environment file")
+    parser.add_argument("--env_class", type=str, default=None, help="Name of the environment class")
 
     # TensorBoard parameters
     parser.add_argument("--use_tensorboard", type=str, default=None, help="TensorBoard logging path")
@@ -394,5 +398,10 @@ if __name__ == "__main__":
             args.flash_attn = True
         assert args.vllm_num_engines > 0, "Only support `--packing_samples` with vLLM."
         assert not args.pretrain_data, "`--pretrain_data` is not supported with `--packing_samples` yet."
+        
+    if args.env_file and args.env_class:
+        env = importlib.import_module(args.env_file)
+        env = getattr(env, args.env_class)
+        args.env_maker = lambda *args, **kwargs: env(*args, **kwargs)
 
     train(args)
