@@ -152,8 +152,9 @@ def train(args):
             args.enforce_eager,
             max_len,
         )
-
+    strategy.print("155")
     ray.get(refs)
+    strategy.print("157")
 
     if args.critic_pretrain:
         # critic scheduler initialization depends on max_step, so we have to init critic after actor
@@ -163,6 +164,7 @@ def train(args):
         ray.get(refs)
 
     # train actor and critic mdoel
+    strategy.print("167")
     refs = actor_model.async_fit_actor_model(
         critic_model, ref_model, reward_models, args.remote_rm_url, reward_fn=reward_fn, vllm_engines=vllm_engines, using_env=args.env_file is not None
     )
