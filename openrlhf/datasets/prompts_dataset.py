@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 
-def preprocess_data(data, input_template=None, input_key="input", apply_chat_template=None) -> str:
+def preprocess_data(data, input_template=None, input_key="input", apply_chat_template=None, multiturn=False) -> str:
     if apply_chat_template:
         chat = data[input_key]
         if isinstance(chat, str):
@@ -15,31 +15,11 @@ def preprocess_data(data, input_template=None, input_key="input", apply_chat_tem
         if input_template:
             prompt = input_template.format(prompt)
         
-    if data.get("repo", None) is not None:
-        # We're working with SWE-bench!
-        full_data = {
-            "repo": data["repo"],
-            "instance_id": data["instance_id"],
-            "base_commit": data["base_commit"],
-            "patch": data["patch"],
-            "test_patch": data["test_patch"],
-            "problem_statement": data["problem_statement"],
-            "hints_text": data["hints_text"],
-            "created_at": data["created_at"],
-            "version": data["version"],
-            "FAIL_TO_PASS": data["FAIL_TO_PASS"],
-            "PASS_TO_PASS": data["PASS_TO_PASS"],
-            "environment_setup_commit": data["environment_setup_commit"],
-        }
-    elif data.get("input", None) is not None and data.get("answer", None) is not None:
-        # My dummy dataset
-        full_data = {
-            "input_prompt": data["input"],
-            "solution": data["answer"],
-        }
+    if multiturn:
+        full_data = data
     else:
         full_data = None
-    # TODO: MAKE THIS LESS SILLY AND MORE GENERIC
+    
     return prompt, full_data, data.get("solution", None)
 
 
@@ -73,8 +53,9 @@ class PromptDataset(Dataset):
             apply_chat_template = self.tokenizer.apply_chat_template
 
         self.prompts = []
+        multiturn = vars(self.strategy.args).get("env_file", None) is not None
         for data in tqdm(dataset, desc="Preprocessing data", disable=not self.strategy.is_rank_0()):
-            prompt, full_data, solution = preprocess_data(data, input_template, input_key, apply_chat_template)
+            prompt, full_data, solution = preprocess_data(data, input_template, input_key, apply_chat_template, multiturn)
             data_entry = {
                 "prompts": prompt,
             }
