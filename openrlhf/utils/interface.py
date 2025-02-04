@@ -43,6 +43,10 @@ class AgentInterface(ABC):
             active_conversations = []
             for idx in active_indices:
                 prompt, states[idx] = await self.get_next_prompt(all_messages[idx], states[idx])
+                if prompt is None:
+                    # The environment is done, so we don't need to generate any more prompts
+                    active_indices.remove(idx)
+                    continue
                 all_messages[idx].append(prompt)
                 active_conversations.append(all_messages[idx])
             
@@ -86,8 +90,18 @@ class AgentInterface(ABC):
         pass
 
     @abstractmethod
-    async def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
-        """Get the next prompt to send to the model and updated state.
+    async def get_next_prompt(self, messages: List[Message], state: AgentState) -> Optional[Tuple[Message, AgentState]]:
+        """Input:
+        - messages: the messages in the conversation
+        - state: the state of the environment
+        
+        Output:
+        - next_prompt: the next prompt to send to the model
+        - next_state: the updated state of the environment
+        
+        Note: an output of None means that the environment is done and the agent should stop generating.
+        
+        Get the next prompt to send to the model and updated state.
 
         In this function, you should (1) use the model's last message to update the state. 
         Then (2) create the prompt to send to the model, which should probably incorporate observations about the environment.
