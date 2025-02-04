@@ -249,6 +249,7 @@ class PPORayActorGroup:
         remote_rm_urls: List[str] = None,
         reward_fn: Callable[[List[torch.Tensor]], torch.Tensor] = None,
         vllm_engines: List = None,
+        using_env: bool = False,
     ):
         """Train actor model.
 
@@ -280,7 +281,7 @@ class PPORayActorGroup:
             initial_actor = initial_actors[i % len(initial_actors)]
 
             reward_actors = []
-            if not remote_rm_urls:
+            if not remote_rm_urls and not using_env:
                 for reward_model_group in reward_model_groups:
                     actors = reward_model_group._actor_handlers
                     reward_actors.append(actors[i % len(actors)])

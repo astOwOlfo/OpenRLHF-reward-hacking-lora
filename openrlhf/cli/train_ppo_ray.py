@@ -164,7 +164,7 @@ def train(args):
 
     # train actor and critic mdoel
     refs = actor_model.async_fit_actor_model(
-        critic_model, ref_model, reward_models, args.remote_rm_url, reward_fn=reward_fn, vllm_engines=vllm_engines
+        critic_model, ref_model, reward_models, args.remote_rm_url, reward_fn=reward_fn, vllm_engines=vllm_engines, using_env=args.env_file is not None
     )
     ray.get(refs)
 
