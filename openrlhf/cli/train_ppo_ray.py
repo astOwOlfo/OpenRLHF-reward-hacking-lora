@@ -115,7 +115,7 @@ def train(args):
         critic_model = None
 
     # multiple reward models
-    if not args.remote_rm_url:
+    if not args.remote_rm_url and not args.env_file:
         reward_pretrains = args.reward_pretrain.split(",")
         reward_models = []
         for _ in reward_pretrains:
@@ -135,7 +135,7 @@ def train(args):
     refs = []
     refs.extend(ref_model.async_init_model_from_pretrained(strategy, args.pretrain))
     refs.extend(actor_model.async_init_model_from_pretrained(strategy, args.pretrain))
-    if not args.remote_rm_url:
+    if not args.remote_rm_url and not args.env_file:
         for reward_model, reward_pretrain in zip(reward_models, reward_pretrains):
             refs.extend(reward_model.async_init_model_from_pretrained(strategy, reward_pretrain))
 
@@ -365,7 +365,7 @@ if __name__ == "__main__":
     if args.advantage_estimator not in ["gae"]:
         args.critic_pretrain = None
     elif args.critic_pretrain is None:
-        if not args.remote_rm_url:
+        if not args.remote_rm_url and not args.env_file:
             args.critic_pretrain = args.reward_pretrain.split(",")[0]
         else:
             args.critic_pretrain = args.pretrain

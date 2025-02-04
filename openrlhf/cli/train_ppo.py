@@ -54,7 +54,7 @@ def train(args):
     else:
         critic = None
 
-    if not args.remote_rm_url:
+    if not args.remote_rm_url and not args.env_file:
         reward_model = get_llm_for_sequence_regression(
             args.reward_pretrain,
             "reward",
@@ -418,7 +418,7 @@ if __name__ == "__main__":
     if args.advantage_estimator not in ["gae"]:
         args.critic_pretrain = None
     elif args.critic_pretrain is None:
-        if not args.remote_rm_url:
+        if not args.remote_rm_url and not args.env_file:
             args.critic_pretrain = args.reward_pretrain
         else:
             args.critic_pretrain = args.pretrain
