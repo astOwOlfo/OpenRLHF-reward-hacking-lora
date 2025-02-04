@@ -405,6 +405,5 @@ if __name__ == "__main__":
         env = importlib.import_module(args.env_file)
         env = getattr(env, args.env_class)
         args.env_maker = lambda *args, **kwargs: env(*args, **kwargs)
-        assert False, "IT WORKS"
 
     train(args)
