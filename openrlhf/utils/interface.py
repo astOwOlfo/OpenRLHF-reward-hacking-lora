@@ -29,7 +29,7 @@ class AgentInterface(ABC):
         # As an example of full_data, for a given swe_bench task, it is a list of dicts, each with the following keys:
         # "repo", "instance_id", "base_commit", "patch", "test_patch", "problem_statement", "hints_text", "version", "FAIL_TO_PASS", "PASS_TO_PASS", "environment_setup_commit"
     
-    def generate_many(self) -> List[Tuple[AgentConversation, Reward]]:
+    async def generate_many(self) -> List[Tuple[AgentConversation, Reward]]:
         # Initialize states for all conversations
         states = [self.init_state(data) for data in self.full_data]
         all_messages = [list() for _ in range(self.num_envs)]
@@ -42,7 +42,7 @@ class AgentInterface(ABC):
             # Get next prompts for all active conversations
             active_conversations = []
             for idx in active_indices:
-                prompt, states[idx] = self.get_next_prompt(all_messages[idx], states[idx])
+                prompt, states[idx] = await self.get_next_prompt(all_messages[idx], states[idx])
                 all_messages[idx].append(prompt)
                 active_conversations.append(all_messages[idx])
             
@@ -67,26 +67,26 @@ class AgentInterface(ABC):
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens
                 })
-                if not self.is_done(all_messages[real_idx], states[real_idx]):
+                if not await self.is_done(all_messages[real_idx], states[real_idx]):
                     new_active_indices.append(real_idx)
             
             active_indices = new_active_indices
         # Calculate rewards for completed conversations
         results = []
         for messages, tokens_by_turn, state in zip(all_messages, tokens_by_turn, states):
-            reward = self.get_reward(messages, state)
+            reward = await self.get_reward(messages, state)
             conversation = AgentConversation(messages=messages, tokens_by_turn=tokens_by_turn)
             results.append((conversation, reward))
         
         return results
 
     @abstractmethod
-    def init_state(self, data: dict) -> AgentState:
+    async def init_state(self, data: dict) -> AgentState:
         """Initialize the state for a new RL env, given a dict of the info in one element of the dataset"""
         pass
 
     @abstractmethod
-    def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
+    async def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
         """Get the next prompt to send to the model and updated state.
 
         In this function, you should (1) use the model's last message to update the state. 
@@ -95,10 +95,10 @@ class AgentInterface(ABC):
         pass
 
     @abstractmethod
-    def is_done(self, messages: List[Message], state: AgentState) -> bool:
+    async def is_done(self, messages: List[Message], state: AgentState) -> bool:
         """Determine if the conversation is complete"""
         pass
 
     @abstractmethod
-    def get_reward(self, messages: List[Message], state: AgentState) -> Reward:
+    async def get_reward(self, messages: List[Message], state: AgentState) -> Reward:
         pass

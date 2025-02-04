@@ -8,13 +8,13 @@ class DummyEnv(AgentInterface):
     """This dummy environment is used for testing the RLHF pipeline.
     It's a simple environment where the agent is given a prompt and must respond to it.
     The reward incentivizes a short first response and a longer second response."""
-    def __init__(self, *args, **kwargs):
+    async def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    def init_state(self, data: dict) -> AgentState:
+    async def init_state(self, data: dict) -> AgentState:
         return (0, data["input_prompt"][0])
     
-    def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
+    async def get_next_prompt(self, messages: List[Message], state: AgentState) -> Tuple[Message, AgentState]:
         if state[0] == 0:
             turn_1_convo = state[1]
             return turn_1_convo, (1, state[1])
@@ -24,10 +24,10 @@ class DummyEnv(AgentInterface):
         else:
             raise ValueError("DummyEnv only supports 2 usermessages")
     
-    def is_done(self, messages: List[Message], state: AgentState) -> bool:
+    async def is_done(self, messages: List[Message], state: AgentState) -> bool:
         return state[0] == 2
     
-    def get_reward(self, messages: List[Message], state: AgentState) -> float:
+    async def get_reward(self, messages: List[Message], state: AgentState) -> float:
         assert state[0] == 2
         assert messages[1]["role"] == "assistant" and messages[3]["role"] == "assistant"
         len_first_response = len(messages[1]["content"])
