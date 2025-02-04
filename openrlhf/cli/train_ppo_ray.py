@@ -5,6 +5,7 @@ import importlib
 import ray
 import torch
 from ray.util.placement_group import placement_group
+import os, sys
 
 from openrlhf.trainer.ray import (
     ActorModelRayActor,
@@ -400,6 +401,7 @@ if __name__ == "__main__":
         assert not args.pretrain_data, "`--pretrain_data` is not supported with `--packing_samples` yet."
         
     if args.env_file and args.env_class:
+        sys.path.insert(0, os.getcwd())
         env = importlib.import_module(args.env_file)
         env = getattr(env, args.env_class)
         args.env_maker = lambda *args, **kwargs: env(*args, **kwargs)
