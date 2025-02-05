@@ -716,6 +716,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         samples_list = []
         for i in range(0, len(all_outputs), args.micro_rollout_batch_size):
             outputs = all_outputs[i : i + self.strategy.args.micro_rollout_batch_size]
+            solutions = all_solutions[i : i + self.strategy.args.micro_rollout_batch_size]
             if not self.packing_samples:
                 # NOTE: concat all outputs to following format:
                 #
@@ -762,7 +763,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
                         reward=None,
-                        solutions=all_solutions[i : i + self.strategy.args.micro_rollout_batch_size] if all_solutions[0] is not None else None,
+                        solutions=solutions if solutions[0] is not None else None,
                     )
                 )
             else:
@@ -838,7 +839,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=response_length,
                         total_length=total_length,
                         reward=rewards,
-                        solutions=all_solutions[i : i + self.strategy.args.micro_rollout_batch_size] if all_solutions[0] is not None else None,
+                        solutions=solutions if solutions[0] is not None else None,
                     )
                 )
         return samples_list
