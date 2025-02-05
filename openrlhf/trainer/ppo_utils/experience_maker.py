@@ -255,7 +255,6 @@ class NaiveExperienceMaker(ABC):
         samples_list = []
         for i in range(0, len(all_prompts), args.micro_rollout_batch_size):
             prompts = all_prompts[i : i + args.micro_rollout_batch_size]
-            data = full_data[i : i + args.micro_rollout_batch_size]
             solutions = all_solutions[i : i + args.micro_rollout_batch_size]
             prompt_token_ids = self.tokenize_fn(prompts, self.prompt_max_len, padding=False)["input_ids"]
             inputs = self.tokenize_fn(prompts, self.prompt_max_len, device="cuda")
@@ -659,7 +658,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         
         all_prompts = [example["prompts"] for example in all_examples]  # Remove .get() since we know the key exists
         full_data = [example.get("full_data", None) for example in all_examples]
-        solutions = [example.get("solution", None) for example in all_examples]
+        all_solutions = [example.get("solution", None) for example in all_examples]
         
         # prompt_token_id_map = {}
         # prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"] 
@@ -692,7 +691,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         all_prompts = sum([[prompt] * args.n_samples_per_prompt for prompt in all_prompts], [])
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
         all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
-        all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
+        all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in all_solutions], [])
         assert len(all_prompts) == len(all_full_data) == len(all_solutions)
         
         # Distribute requests to engines and collect responses to outputs
@@ -718,6 +717,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         for i in range(0, len(all_outputs), args.micro_rollout_batch_size):
             outputs = all_outputs[i : i + self.strategy.args.micro_rollout_batch_size]
             solutions = all_solutions[i : i + self.strategy.args.micro_rollout_batch_size]
+            assert len(outputs) == len(solutions)
             if not self.packing_samples:
                 # NOTE: concat all outputs to following format:
                 #
