@@ -578,6 +578,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 queries = self.tokenizer.batch_decode(sequences_list, skip_special_tokens=False)
 
             for rm in self.remote_rm_url:
+                assert len(queries) == len(solutions)
                 r = remote_rm_fn_ray.remote(rm, queries=queries, solutions=solutions)
                 r_refs.append(r)
 
@@ -715,8 +716,8 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
 
         samples_list = []
         for i in range(0, len(all_outputs), args.micro_rollout_batch_size):
-            outputs = all_outputs[i : i + self.strategy.args.micro_rollout_batch_size]
-            solutions = all_solutions[i : i + self.strategy.args.micro_rollout_batch_size]
+            outputs = all_outputs[i : i + args.micro_rollout_batch_size]
+            solutions = all_solutions[i : i + args.micro_rollout_batch_size]
             assert len(outputs) == len(solutions)
             if not self.packing_samples:
                 # NOTE: concat all outputs to following format:
@@ -764,7 +765,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=action_mask.float().sum(dim=-1),
                         total_length=attention_mask.float().sum(dim=-1),
                         reward=None,
-                        solutions=solutions if solutions[0] is not None else None,
+                        solutions=solutions.copy() if solutions[0] is not None else None,
                     )
                 )
             else:
@@ -826,7 +827,6 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                 
                 sequences = torch.tensor(sequences, device="cuda").unsqueeze(0)
                 attention_mask = torch.tensor(attention_mask, device="cuda").unsqueeze(0)
-                
 
                 response_length = torch.tensor(num_actions, device="cuda", dtype=torch.float)
                 total_length = torch.tensor(packed_seq_lens, device="cuda", dtype=torch.float)
@@ -840,7 +840,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
                         response_length=response_length,
                         total_length=total_length,
                         reward=rewards,
-                        solutions=solutions if solutions[0] is not None else None,
+                        solutions=solutions.copy() if solutions[0] is not None else None,
                     )
                 )
         return samples_list
