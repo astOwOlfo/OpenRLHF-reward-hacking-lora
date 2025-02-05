@@ -42,6 +42,7 @@ class AgentInterface(ABC):
             # Get next prompts for all active conversations
             active_conversations = []
             for idx in active_indices:
+                #TODO: PARALLELIZE!!!
                 prompt, states[idx] = self.get_next_prompt(all_messages[idx], states[idx])
                 if prompt is None:
                     # The environment is done, so we don't need to generate any more prompts
@@ -78,8 +79,10 @@ class AgentInterface(ABC):
         # Calculate rewards for completed conversations
         results = []
         for messages, tokens_by_turn, state in zip(all_messages, tokens_by_turn, states):
+            #TODO: PARALLELIZE!!!
+            messages_clone = messages.copy()
             reward = self.get_reward(messages, state)
-            conversation = AgentConversation(messages=messages, tokens_by_turn=tokens_by_turn)
+            conversation = AgentConversation(messages=messages_clone, tokens_by_turn=tokens_by_turn)
             results.append((conversation, reward))
         
         return results
