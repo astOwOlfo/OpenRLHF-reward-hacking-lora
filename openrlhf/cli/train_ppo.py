@@ -154,8 +154,8 @@ def train(args):
 
     # prepare dataloader
     prompts_dataloader = strategy.setup_dataloader(
-        prompts_dataset, args.rollout_batch_size // strategy.world_size, True, False
-    ) # Don't shuffle since data is in pre-determined order
+        prompts_dataset, args.rollout_batch_size // strategy.world_size, True, shuffle=True
+    )
     if args.pretrain_data:
         pretrain_dataloader = itertools.cycle(
             iter(

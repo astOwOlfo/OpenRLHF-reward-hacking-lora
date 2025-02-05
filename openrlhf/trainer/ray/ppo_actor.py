@@ -285,7 +285,7 @@ class ActorModelRayActor(BasePPORole):
             prompts_data, self.tokenizer, strategy, input_template=args.input_template
         )
         self.prompts_dataloader = strategy.setup_dataloader(
-            self.prompts_dataset, args.rollout_batch_size // strategy.world_size, True, False, collate_fn=custom_collate_fn # Set shuffle to False since preset data order
+            self.prompts_dataset, args.rollout_batch_size // strategy.world_size, True, shuffle=True, collate_fn=custom_collate_fn 
         )
 
         if args.pretrain_data:
