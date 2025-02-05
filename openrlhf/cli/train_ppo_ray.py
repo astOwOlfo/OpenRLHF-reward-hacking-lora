@@ -400,7 +400,6 @@ if __name__ == "__main__":
         assert not args.pretrain_data, "`--pretrain_data` is not supported with `--packing_samples` yet."
         
     if args.env_file and args.env_class:
-        assert False, os.getcwd()
         sys.path.insert(0, os.getcwd())
         env = importlib.import_module(args.env_file)
         env = getattr(env, args.env_class)
