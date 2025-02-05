@@ -693,6 +693,7 @@ class RemoteExperienceMaker(NaiveExperienceMaker):
         all_prompt_token_ids = self.tokenize_fn(all_prompts, self.prompt_max_len, padding=False)["input_ids"]
         all_full_data = sum([[datum] * args.n_samples_per_prompt for datum in full_data], [])
         all_solutions = sum([[solution] * args.n_samples_per_prompt for solution in solutions], [])
+        assert len(all_prompts) == len(all_full_data) == len(all_solutions)
         
         # Distribute requests to engines and collect responses to outputs
         all_output_refs = []
