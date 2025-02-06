@@ -3,8 +3,6 @@ from typing import *
 import vllm
 from vllm import SamplingParams
 from dataclasses import dataclass
-from ray.util.multiprocessing import Pool
-
 
 Message = Dict[str, str]
 Reward = float
@@ -27,7 +25,6 @@ class AgentInterface(ABC):
         self.full_data = full_data
         self.sampling_params = sampling_params
         self.vllm_engine = vllm_engine
-        self.pool = Pool(ray_address="auto")
         
         # As an example of full_data, for a given swe_bench task, it is a list of dicts, each with the following keys:
         # "repo", "instance_id", "base_commit", "patch", "test_patch", "problem_statement", "hints_text", "version", "FAIL_TO_PASS", "PASS_TO_PASS", "environment_setup_commit"
@@ -43,12 +40,10 @@ class AgentInterface(ABC):
         # Continue until all conversations are complete
         while active_indices:
             # Get next prompts for all active conversations
-            all_prompts, all_states = self.pool.starmap(self.get_next_prompt, [(all_messages[idx], states[idx]) for idx in active_indices])
-            # Add these to the conversation
             active_conversations = []
             for idx in active_indices:
                 #TODO: PARALLELIZE!!!
-                prompt, states[idx] = all_prompts[idx], all_states[idx]
+                prompt, states[idx] = self.get_next_prompt(all_messages[idx], states[idx])
                 if prompt is None:
                     # The environment is done, so we don't need to generate any more prompts
                     active_indices.remove(idx)
@@ -81,13 +76,12 @@ class AgentInterface(ABC):
                     new_active_indices.append(real_idx)
             
             active_indices = new_active_indices
-        # Get rewards in parallel
-        all_rewards = self.pool.starmap(self.get_reward, [(all_messages[idx], states[idx]) for idx in active_indices])
-            
         # Calculate rewards for completed conversations
         results = []
-        for messages, tokens_by_turn, reward in zip(all_messages, tokens_by_turn, all_rewards):
+        for messages, tokens_by_turn, state in zip(all_messages, tokens_by_turn, states):
+            #TODO: PARALLELIZE!!!
             messages_clone = messages.copy()
+            reward = self.get_reward(messages, state)
             conversation = AgentConversation(messages=messages_clone, tokens_by_turn=tokens_by_turn)
             results.append((conversation, reward))
         
