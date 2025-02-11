@@ -121,7 +121,13 @@ class ActorPPOTrainer(PPOTrainer):
             # 4. broadcast weights to vllm engines
             if self.vllm_engines is not None:
                 torch.distributed.barrier()
-                self._broadcast_to_vllm()
+
+                lora = hasattr(self.actor.model, "peft_config") and self.actor.model.peft_config is not None
+                print(f"{lora=}")
+                if lora:
+                    self._broadcast_lora_adapter_to_vllm()
+                else:
+                    self._broadcast_to_vllm()
         else:
             status = {}
 
@@ -156,6 +162,15 @@ class ActorPPOTrainer(PPOTrainer):
                 if torch.distributed.get_rank() == 0:
                     torch.distributed.broadcast(param.data, 0, group=self._model_update_group)
                     ray.get(refs)
+
+    def _broadcast_lora_adapter_to_vllm(self):
+        torch.cuda.empty_cache()
+        root_save_directory = "/root/lora_adapters/"
+        save_directory = next(iter(f"{root_save_directory}/{i}" for i in itertools.count() if not os.path.isdir(f"{root_save_directory}/{i}")))
+
+        self.actor.model.save_pretrained(save_directory)
+
+        ray.get([engine.set_lora_adapter.remote(save_directory) for engine in self.vllm_engines])
 
     def _save_checkpoint(self, args, tag, client_states):
         # call remote critic
@@ -400,6 +415,11 @@ class ActorModelRayActor(BasePPORole):
 
     def save_model(self):
         args = self.strategy.args
+
+        if self.strategy.args.lora_rank is not None:
+            # with lora, we do not need to save the model, because _broadcast_lora_adapter_to_vllm
+            # already saves the lora adapter
+            return
 
         # save model checkpoint after fitting on only rank0
         self.strategy.save_model(

@@ -53,12 +53,19 @@ class LLMRayActor:
 
                 RayWorkerWrapperPath.RayWorkerWrapper = RayWorkerWrapper
 
-        self.llm = vllm.LLM(*args, **kwargs)
+        self.llm = vllm.LLM(*args, **kwargs, lora_request=self.lora_adapter)
+        self.lora_adapter = None
+        self._lora_adapter_id_counter = 1
+
+    def set_lora_adapter(self, path: str) -> None:
+        from vllm.lora.request import LoRARequest
+        self.lora_adapter = LoRARequest("adapter", self._lora_adapter_id_counter, path)
+        self._lora_adapter_id_counter += 1
 
     def generate(self, *args, **kwargs):
         
         if not kwargs.get("multiturn", False):
-            return self.llm.generate(*args, **kwargs)
+            return self.llm.generate(*args, **kwargs, enable_lora=False)
         
         # Call the RL agent interface
         data = kwargs["full_data"]
